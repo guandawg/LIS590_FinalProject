@@ -1,0 +1,542 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 418,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "%matplotlib inline"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 419,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import csv"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 420,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "import plotly\n",
+    "plotly.tools.set_credentials_file(username='liyihan', api_key='sTd0wThycrlBnHrU9VS4')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 421,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "import plotly.graph_objs as go\n",
+    "import plotly.plotly as py\n",
+    "from plotly.graph_objs import *\n",
+    "import plotly.figure_factory as ff\n",
+    "from plotly import tools"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "give the value of each amount value of each columns, in my function, the columns that have 5 different values is most like a category, and the columns that have only 1 value and the columns have many different value is not like a category. The find_most_common_category function will call this function."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 422,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": [
+    "def self_check_cate(x):\n",
+    "    if x == 5:\n",
+    "        return 0\n",
+    "    if x == 4:\n",
+    "        return 1\n",
+    "    if x == 6:\n",
+    "        return 2\n",
+    "    if x == 3:\n",
+    "        return 3\n",
+    "    if x == 2:\n",
+    "        return 4\n",
+    "    elif x == 1:\n",
+    "        return 100000\n",
+    "    else:\n",
+    "        return x - 4"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "this function is to find the column which is most like a category, this function will return the category name that seems like a category most. The function accept a dataframe and the list of the name of all columns in that dataframe."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 423,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def find_most_common_category(data,attr):\n",
+    "    common_cate = []\n",
+    "    for n in attr:\n",
+    "        common_cate.append(self_check_cate(len(set(data[n]))))\n",
+    "    for n in range(len(common_cate)):\n",
+    "        if common_cate[n] == min(common_cate):\n",
+    "            index_n = n\n",
+    "    return attr[index_n]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "This function is used to return a dict object which contains the variables and their correlation value. I use to check the absolute value to eliminate the nan value and the value is really small (<0.001)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 424,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def check_relative(data):\n",
+    "    data_rela = data.corr()\n",
+    "    relative_pair_temp = {}\n",
+    "    relative_pair = {}\n",
+    "    for i in range(len(data_rela)):\n",
+    "        for j in range(i+1,len(data_rela)):\n",
+    "            pair_name = data_rela.columns[i]+' and '+data_rela.columns[j]\n",
+    "            relative_pair_temp[pair_name] = data_rela.iloc[i,j]\n",
+    "    for i in relative_pair_temp:\n",
+    "        if abs(relative_pair_temp[i]) >= 0.001:\n",
+    "            relative_pair[i] = relative_pair_temp[i]  \n",
+    "    return relative_pair"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "This is the main function, which recive a dateframe value and the filename, this function will return three plots, one scatter plot that shows the distribution of data, one pie chart shows the counts of each value in category, one bar chart shous the correlation value between each variables."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 425,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def data_overview(data,fn):\n",
+    "    attr = [n for n in data.columns]\n",
+    "    cate_attr = find_most_common_category(data,attr)\n",
+    "    rela_dict = check_relative(data)\n",
+    "    file_name_temp = fn[:-4]\n",
+    "    file_name = file_name_temp.split('/')[-1]\n",
+    "    #scatter of distribution\n",
+    "    point_color = []\n",
+    "    location = []\n",
+    "    for i,j in zip(data['latitude'],data['longitude']):\n",
+    "        location.append((i,j))\n",
+    "    for i in location:\n",
+    "        point_count = 0\n",
+    "        for j in location:\n",
+    "            if i == j:\n",
+    "                point_count += 1\n",
+    "        point_color.append(point_count)\n",
+    "    trace_a = go.Scatter(\n",
+    "    x = data['latitude'],\n",
+    "    y = data['longitude'],\n",
+    "    mode='markers',\n",
+    "    marker=dict(\n",
+    "        size='10',\n",
+    "        color = point_color, \n",
+    "        colorscale='Viridis',\n",
+    "        showscale=True\n",
+    "        )\n",
+    "    )\n",
+    "    layout_a= go.Layout(\n",
+    "    title= file_name+' data distribution',\n",
+    "    xaxis= dict(\n",
+    "        title= 'Latitude'\n",
+    "    ),\n",
+    "    yaxis=dict(\n",
+    "        title= 'Longitude'\n",
+    "    ))\n",
+    "    fig_a = go.Figure(data=[trace_a], layout=layout_a)\n",
+    "    \n",
+    "    # category pie chart\n",
+    "    pie_label_temp = []\n",
+    "    pie_value_temp = []\n",
+    "    pie_label = []\n",
+    "    pie_value = []\n",
+    "    cate_index = set(data[cate_attr])\n",
+    "    count_cate = []\n",
+    "    for i in cate_index:\n",
+    "        count_for_each = 0\n",
+    "        pie_label_temp.append(i)\n",
+    "        for j in data[cate_attr]:\n",
+    "            if i == j:\n",
+    "                count_for_each += 1\n",
+    "        pie_value_temp.append(count_for_each)\n",
+    "    pie_other = 0\n",
+    "    threshold = sum(pie_value_temp) * 0.10\n",
+    "    for i in range(len(pie_label_temp)):\n",
+    "        if pie_value_temp[i] >= threshold:\n",
+    "            pie_label.append(pie_label_temp[i])\n",
+    "            pie_value.append(pie_value_temp[i])\n",
+    "        else:\n",
+    "            pie_other = pie_other + pie_value_temp[i]\n",
+    "    if pie_other > 0:\n",
+    "        pie_label.append('others')\n",
+    "        pie_value.append(pie_other)\n",
+    "    trace_b=go.Pie(labels=pie_label,values=pie_value)\n",
+    "    layout_b= go.Layout(\n",
+    "    title= file_name+' '+cate_attr+' distribution',\n",
+    "    )\n",
+    "    fig_b = go.Figure(data=[trace_b], layout=layout_b)\n",
+    "\n",
+    "    #bar chart of relative\n",
+    "    bar_label_temp = []\n",
+    "    bar_value_temp = []\n",
+    "    bar_value_temp_abs = []\n",
+    "    bar_label = []\n",
+    "    bar_value = []\n",
+    "    for k,v in rela_dict.items():\n",
+    "        bar_label_temp.append(k)\n",
+    "        bar_value_temp.append(v)\n",
+    "        bar_value_temp_abs.append(abs(v))\n",
+    "    for i in range(min(10,len(bar_value_temp))):\n",
+    "        bar_max = bar_value_temp_abs.index(max(bar_value_temp_abs))\n",
+    "        bar_label.append(bar_label_temp[bar_max])\n",
+    "        bar_value.append(bar_value_temp[bar_max])\n",
+    "        bar_value_temp_abs[bar_max] = 0\n",
+    "    trace_c = go.Bar(x = bar_label,y = bar_value)\n",
+    "    layout_c= go.Layout(\n",
+    "    title= file_name+' correlation value',\n",
+    "    xaxis= dict(\n",
+    "        title= 'variables pair'\n",
+    "    ),\n",
+    "    yaxis=dict(\n",
+    "        title= 'correlation value'\n",
+    "    ))\n",
+    "    fig_c = go.Figure(data=[trace_c], layout=layout_c)\n",
+    "    file_name_a = file_name+'_data_distribution.png'\n",
+    "    file_name_b = file_name+'_categroy_pie_chart.png'\n",
+    "    file_name_c = file_name+'_correlation_value.png'\n",
+    "    return py.iplot(fig_a,filename= file_name_a),py.iplot(fig_b,filename= file_name_b),py.iplot(fig_c,filename=file_name_c)\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 426,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "fn = '/Users/guanda/Desktop/sample_flat.csv'\n",
+    "fn2 ='/Users/guanda/Desktop/wgd_csv.csv'\n",
+    "fn3 = '/Users/guanda/Desktop/IMLS.csv'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 427,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "dataframe_a = pd.read_csv(fn)\n",
+    "dataframe_b = pd.read_csv(fn2)\n",
+    "dataframe_c = pd.read_csv(fn3,encoding='iso-8859-1',sep=',')\n",
+    "da1,db1,dc1 =data_overview(dataframe_a,fn)\n",
+    "da2,db2,dc2 =data_overview(dataframe_b,fn2)\n",
+    "da3,db3,dc3 =data_overview(dataframe_c,fn3)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 428,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/26.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 428,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "da1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 429,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/28.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 429,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "db1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 430,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/32.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 430,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "dc1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 431,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/34.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 431,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "da2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 432,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/36.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 432,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "db2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 433,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/38.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 433,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "dc2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 434,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/40.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 434,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "da3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 435,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/42.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 435,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "db3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 436,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<iframe id=\"igraph\" scrolling=\"no\" style=\"border:none;\" seamless=\"seamless\" src=\"https://plot.ly/~liyihan/44.embed\" height=\"525px\" width=\"100%\"></iframe>"
+      ],
+      "text/plain": [
+       "<plotly.tools.PlotlyDisplay object>"
+      ]
+     },
+     "execution_count": 436,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "dc3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
